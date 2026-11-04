@@ -60,14 +60,15 @@ class DownRotaBot(botpy.Client):
         # 2. 处理图片附件
         if message.attachments:
             if "Best40" in text:
-                await self.download_image(message.attachments[0].url, SAVE_PATH_B40)
-                print(f"🖼️ 捕捉到 B40 图片，已更新至: {SAVE_PATH_B40}")
+                success = await self.download_image(message.attachments[0].url, SAVE_PATH_B40)
+                if success:
+                    print(f"🖼️ 捕捉到 B40 图片，已更新至: {SAVE_PATH_B40}")
             else:
-                # 其他图片：使用 前缀 + 时间戳 命名
                 timestamp = int(time.time())
                 filename = f"{SAVE_PATH_OTHER_PREFIX}{timestamp}.png"
-                await self.download_image(message.attachments[0].url, filename)
-                print(f"🖼️ 捕捉到其它图片，已保存至: {filename}")
+                success = await self.download_image(message.attachments[0].url, filename)
+                if success:
+                    print(f"🖼️ 捕捉到其它图片，已保存至: {filename}")
         
         # 3. 处理纯文本回显（如 /r update 的 Rating 提示）
         elif "Rating:" in text:
@@ -76,14 +77,24 @@ class DownRotaBot(botpy.Client):
 
     async def download_image(self, url, filename):
         try:
+            # 自动创建文件夹（如果目录存在则不报错）
+            dir_path = os.path.dirname(filename)
+            if dir_path:
+                os.makedirs(dir_path, exist_ok=True)
+
             async with aiohttp.ClientSession() as session:
                 async with session.get(url) as resp:
                     if resp.status == 200:
                         with open(filename, "wb") as f:
                             async for chunk in resp.content.iter_chunked(8192):
                                 f.write(chunk)
+                        return True
+                    else:
+                        print(f"❌ 图片下载失败 ({filename}): HTTP {resp.status}")
+                        return False
         except Exception as e:
             print(f"❌ 图片下载失败 ({filename}): {e}")
+            return False
 
 
 # ==================== Tkinter GUI ====================
